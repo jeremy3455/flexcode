@@ -8,7 +8,7 @@ from typing import Dict
 
 import jwt
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -42,6 +42,14 @@ guest_agents: Dict[str, Agent] = {}
 
 app = FastAPI(title="Agente Conversacional")
 security = HTTPBearer(auto_error=False)
+
+@app.middleware("http")
+async def ignore_chrome_devtools(request: Request, call_next):
+    if request.url.path.startswith("/.well-known/"):
+        from starlette.responses import Response
+        return Response(status_code=204)
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,

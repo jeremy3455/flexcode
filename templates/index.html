@@ -1056,6 +1056,9 @@
       } else {
         showAuth();
       }
+      if (sidebarOverlay) {
+        sidebarOverlay.classList.toggle('open', !sidebar.classList.contains('collapsed'));
+      }
     }
 
     init();

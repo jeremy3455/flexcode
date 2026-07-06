@@ -39,9 +39,15 @@
   .sidebar-toggle { display: flex; width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent; color: var(--text-dim); cursor: pointer; font-size: 18px; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
   .sidebar-toggle:hover { background: var(--surface-hover); color: var(--text); }
 
+  .sidebar-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    z-index: 49; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+  .sidebar-overlay.open { opacity: 1; pointer-events: all; }
   @media (max-width: 720px) {
     .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 50; box-shadow: 4px 0 30px rgba(0,0,0,0.4); }
-    .sidebar.collapsed { margin-left: calc(-1 * var(--sidebar-w)); }
+    .sidebar-overlay { display: block; }
+    .sidebar.collapsed ~ .sidebar-overlay { opacity: 0; pointer-events: none; }
     .main-content { width: 100%; }
   }
 
@@ -321,6 +327,7 @@
       <button class="btn-sidebar btn-guest" id="btnGuestSession">Modo Invitado</button>
     </div>
   </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
   <div class="main-content" id="mainContent">
     <header>
@@ -598,9 +605,30 @@
     }
 
     var sidebar = document.querySelector('.sidebar');
+    var sidebarOverlay = document.getElementById('sidebarOverlay');
+
+    function toggleSidebar(open) {
+      if (open === undefined) {
+        sidebar.classList.toggle('collapsed');
+      } else if (open) {
+        sidebar.classList.remove('collapsed');
+      } else {
+        sidebar.classList.add('collapsed');
+      }
+      if (sidebarOverlay) {
+        sidebarOverlay.classList.toggle('open', !sidebar.classList.contains('collapsed'));
+      }
+    }
+
     document.getElementById('sidebarToggle').addEventListener('click', function() {
-      sidebar.classList.toggle('collapsed');
+      toggleSidebar();
     });
+
+    if (sidebarOverlay) {
+      sidebarOverlay.addEventListener('click', function() {
+        toggleSidebar(false);
+      });
+    }
 
     function escapeHtml(text) {
       var d = document.createElement('div');

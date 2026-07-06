@@ -10,7 +10,7 @@ import jwt
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
@@ -260,6 +260,17 @@ def reset_session():
     session_id = str(uuid.uuid4())
     database.create_session(session_id)
     return SessionIdResponse(session_id=session_id)
+
+
+@app.get("/descargar/{filename}")
+def descargar(filename: str):
+    import os
+    from tools.doc_generator import OUTPUT_DIR
+    safe = os.path.basename(filename)
+    filepath = os.path.join(OUTPUT_DIR, safe)
+    if not os.path.exists(filepath):
+        raise HTTPException(404, "Archivo no encontrado")
+    return FileResponse(filepath, filename=safe)
 
 
 @app.get("/", response_class=HTMLResponse)

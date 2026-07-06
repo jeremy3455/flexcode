@@ -39,7 +39,8 @@ def generate_pdf(title: str, content: str, filename: str = "") -> str:
             pdf.multi_cell(0, 6, paragraph.encode("latin-1", "replace").decode("latin-1"))
 
     pdf.output(path)
-    return f"PDF generado: {path}"
+    fname = os.path.basename(path)
+    return f"PDF generado: [{fname}](/descargar/{fname})"
 
 
 def generate_docx(title: str, content: str, filename: str = "") -> str:
@@ -61,7 +62,8 @@ def generate_docx(title: str, content: str, filename: str = "") -> str:
             run.font.size = Pt(11)
 
     doc.save(path)
-    return f"Word generado: {path}"
+    fname = os.path.basename(path)
+    return f"Word generado: [{fname}](/descargar/{fname})"
 
 
 def generate_xlsx(headers: list, rows: list, filename: str = "") -> str:
@@ -85,4 +87,5 @@ def generate_xlsx(headers: list, rows: list, filename: str = "") -> str:
         ws.append(row)
 
     wb.save(path)
-    return f"Excel generado: {path}"
+    fname = os.path.basename(path)
+    return f"Excel generado: [{fname}](/descargar/{fname})"

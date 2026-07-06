@@ -30,7 +30,6 @@
 
   .app-layout { display: flex; height: 100%; }
 
-  /* ── Sidebar ── */
   .sidebar {
     width: var(--sidebar-w); flex-shrink: 0; background: var(--surface);
     border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden;
@@ -104,7 +103,6 @@
 
   .no-sessions { padding: 20px; text-align: center; color: var(--text-dim); font-size: 13px; }
 
-  /* ── Main ── */
   .main-content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
   header {
@@ -125,7 +123,7 @@
 
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-  .header-actions { display: flex; gap: 10px; }
+  .header-actions { display: flex; gap: 10px; align-items: center; }
 
   .btn-icon {
     background: none; border: 1px solid var(--border); color: var(--text-dim);
@@ -138,6 +136,11 @@
   .guest-header-badge {
     font-size: 11px; padding: 3px 10px; border-radius: 6px;
     background: var(--guest-glow); color: var(--guest); font-weight: 600; letter-spacing: 0.02em;
+  }
+
+  .user-badge {
+    font-size: 12px; padding: 3px 12px; border-radius: 6px;
+    background: var(--accent-glow); color: var(--accent); font-weight: 600;
   }
 
   .chat-container {
@@ -193,7 +196,6 @@
   .empty-state h2 { font-family: var(--font-display); font-size: 20px; font-weight: 600; color: var(--text); }
   .empty-state p { font-size: 14px; max-width: 300px; line-height: 1.5; }
 
-  /* ── Settings Drawer ── */
   .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
   .overlay.open { opacity: 1; pointer-events: all; }
   .drawer { position: fixed; top: 0; right: -380px; width: 360px; height: 100%; background: var(--surface); border-left: 1px solid var(--border); z-index: 100; transition: right 0.3s; display: flex; flex-direction: column; overflow-y: auto; }
@@ -225,12 +227,93 @@
   .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--accent); color: white; padding: 12px 28px; border-radius: 12px; font-size: 14px; font-weight: 500; font-family: var(--font-body); z-index: 200; opacity: 0; transition: all 0.35s; pointer-events: none; white-space: nowrap; box-shadow: 0 8px 30px rgba(59, 130, 246, 0.3); }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  .auth-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 300;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  .auth-overlay.open { opacity: 1; pointer-events: all; }
+  .auth-modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 36px 32px 28px; width: 380px; max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .auth-modal h2 {
+    font-family: var(--font-display); font-size: 22px; font-weight: 700;
+    text-align: center; margin-bottom: 4px;
+  }
+  .auth-modal .subtitle {
+    text-align: center; color: var(--text-dim); font-size: 14px; margin-bottom: 24px;
+  }
+  .auth-tabs { display: flex; gap: 0; margin-bottom: 20px; background: var(--bg); border-radius: 10px; padding: 3px; }
+  .auth-tab {
+    flex: 1; padding: 8px; text-align: center; border-radius: 8px; border: none;
+    background: transparent; color: var(--text-dim); cursor: pointer; font-family: var(--font-body);
+    font-size: 13px; font-weight: 600; transition: all 0.2s;
+  }
+  .auth-tab.active { background: var(--accent); color: white; }
+  .auth-form { display: none; }
+  .auth-form.active { display: block; }
+  .auth-form .field { margin-bottom: 14px; }
+  .auth-form label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 4px; font-weight: 600; }
+  .auth-form input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); font-family: var(--font-body); font-size: 14px; padding: 10px 14px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .auth-form input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .auth-form .btn-auth {
+    width: 100%; padding: 11px; border-radius: 10px; border: none;
+    background: var(--accent); color: white; font-family: var(--font-body);
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 8px;
+  }
+  .auth-form .btn-auth:hover { filter: brightness(1.15); }
+  .auth-form .btn-auth:disabled { opacity: 0.5; cursor: not-allowed; }
+  .auth-error { color: #ff4646; font-size: 13px; text-align: center; margin-top: 10px; display: none; }
+
+  .main-content.auth-hidden { display: none; }
+  .sidebar.auth-hidden { display: none; }
 </style>
 </head>
 <body>
 
-<div class="app-layout">
-  <aside class="sidebar">
+<div id="authOverlay" class="auth-overlay">
+  <div class="auth-modal">
+    <h2>FlexCode</h2>
+    <p class="subtitle">Asistente conversacional con IA</p>
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="login">Iniciar sesión</button>
+      <button class="auth-tab" data-tab="register">Registrarse</button>
+    </div>
+    <div class="auth-form active" id="loginForm">
+      <div class="field">
+        <label>Usuario</label>
+        <input type="text" id="loginUsername" placeholder="Nombre de usuario" autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input type="password" id="loginPassword" placeholder="Contraseña" autocomplete="current-password">
+      </div>
+      <button class="btn-auth" id="loginBtn">Ingresar</button>
+      <div class="auth-error" id="loginError"></div>
+    </div>
+    <div class="auth-form" id="registerForm">
+      <div class="field">
+        <label>Usuario</label>
+        <input type="text" id="registerUsername" placeholder="Nombre de usuario" autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input type="password" id="registerPassword" placeholder="Mínimo 4 caracteres" autocomplete="new-password">
+      </div>
+      <button class="btn-auth" id="registerBtn">Crear cuenta</button>
+      <div class="auth-error" id="registerError"></div>
+    </div>
+  </div>
+</div>
+
+<div class="app-layout" id="appLayout">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-header"><h2>Conversaciones</h2></div>
     <div class="sidebar-list" id="sessionList"></div>
     <div class="sidebar-actions">
@@ -239,7 +322,7 @@
     </div>
   </aside>
 
-  <div class="main-content">
+  <div class="main-content" id="mainContent">
     <header>
       <h1>
         <button class="sidebar-toggle" id="sidebarToggle" title="Conversaciones">☰</button>
@@ -248,9 +331,11 @@
         <span class="guest-header-badge" id="guestBadge" style="display:none">Invitado</span>
       </h1>
       <div class="header-actions">
+        <span class="user-badge" id="userBadge" style="display:none"></span>
         <button class="btn-icon" id="saveGuestBtn" style="display:none">Guardar conversación</button>
         <span class="lang-badge" id="langBadge">ES</span>
         <button class="btn-icon" id="btnSettings" title="Configuración">Configuraciones</button>
+        <button class="btn-icon" id="btnLogout" title="Cerrar sesión" style="display:none">Salir</button>
       </div>
     </header>
 
@@ -340,11 +425,144 @@
     const saveGuestBtn = document.getElementById('saveGuestBtn');
     const btnNewSession = document.getElementById('btnNewSession');
     const btnGuestSession = document.getElementById('btnGuestSession');
+    const authOverlay = document.getElementById('authOverlay');
+    const appLayout = document.getElementById('appLayout');
 
     let currentSessionId = null;
     let isGuestSession = false;
     let loading = false;
     let ready = false;
+
+    /* ── Auth ── */
+    function getToken() { return localStorage.getItem('opencode_token'); }
+    function setToken(t) { localStorage.setItem('opencode_token', t); }
+    function clearToken() { localStorage.removeItem('opencode_token'); localStorage.removeItem('opencode_user'); }
+
+    function getAuthHeaders() {
+      var t = getToken();
+      return t ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t } : { 'Content-Type': 'application/json' };
+    }
+
+    function isAuthenticated() { return !!getToken(); }
+
+    function showAuth() {
+      authOverlay.classList.add('open');
+      document.getElementById('sidebar').classList.add('auth-hidden');
+      document.getElementById('mainContent').classList.add('auth-hidden');
+    }
+
+    function hideAuth() {
+      authOverlay.classList.remove('open');
+      document.getElementById('sidebar').classList.remove('auth-hidden');
+      document.getElementById('mainContent').classList.remove('auth-hidden');
+    }
+
+    function onAuthSuccess(data) {
+      setToken(data.token);
+      localStorage.setItem('opencode_user', data.username);
+      hideAuth();
+      document.getElementById('userBadge').textContent = data.username;
+      document.getElementById('userBadge').style.display = 'inline-block';
+      document.getElementById('btnLogout').style.display = 'inline-block';
+      initApp();
+    }
+
+    document.getElementById('loginBtn').addEventListener('click', function() {
+      var username = document.getElementById('loginUsername').value.trim();
+      var password = document.getElementById('loginPassword').value;
+      var errEl = document.getElementById('loginError');
+      if (!username || !password) { errEl.textContent = 'Completa todos los campos'; errEl.style.display = 'block'; return; }
+      errEl.style.display = 'none';
+      this.disabled = true;
+      fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username, password: password })
+      }).then(function(r) {
+        if (!r.ok) return r.json().then(function(e) { throw new Error(e.detail || 'Error'); });
+        return r.json();
+      }).then(function(data) {
+        onAuthSuccess(data);
+      }).catch(function(e) {
+        errEl.textContent = e.message;
+        errEl.style.display = 'block';
+      }).then(function() {
+        document.getElementById('loginBtn').disabled = false;
+      });
+    });
+
+    document.getElementById('registerBtn').addEventListener('click', function() {
+      var username = document.getElementById('registerUsername').value.trim();
+      var password = document.getElementById('registerPassword').value;
+      var errEl = document.getElementById('registerError');
+      if (!username || !password) { errEl.textContent = 'Completa todos los campos'; errEl.style.display = 'block'; return; }
+      errEl.style.display = 'none';
+      this.disabled = true;
+      fetch('/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username, password: password })
+      }).then(function(r) {
+        if (!r.ok) return r.json().then(function(e) { throw new Error(e.detail || 'Error'); });
+        return r.json();
+      }).then(function(data) {
+        onAuthSuccess(data);
+      }).catch(function(e) {
+        errEl.textContent = e.message;
+        errEl.style.display = 'block';
+      }).then(function() {
+        document.getElementById('registerBtn').disabled = false;
+      });
+    });
+
+    document.getElementById('btnLogout').addEventListener('click', function() {
+      clearToken();
+      document.getElementById('userBadge').style.display = 'none';
+      this.style.display = 'none';
+      showAuth();
+    });
+
+    var authTabs = document.querySelectorAll('.auth-tab');
+    for (var i = 0; i < authTabs.length; i++) {
+      (function(tab) {
+        tab.addEventListener('click', function() {
+          document.querySelectorAll('.auth-tab').forEach(function(t) { t.classList.remove('active'); });
+          document.querySelectorAll('.auth-form').forEach(function(f) { f.classList.remove('active'); });
+          this.classList.add('active');
+          document.getElementById(this.dataset.tab + 'Form').classList.add('active');
+        });
+      })(authTabs[i]);
+    }
+
+    function enterKey(el, btnId) {
+      el.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); document.getElementById(btnId).click(); }
+      });
+    }
+    enterKey(document.getElementById('loginUsername'), 'loginBtn');
+    enterKey(document.getElementById('loginPassword'), 'loginBtn');
+    enterKey(document.getElementById('registerUsername'), 'registerBtn');
+    enterKey(document.getElementById('registerPassword'), 'registerBtn');
+
+    /* ── API helpers ── */
+    function apiFetch(url, options) {
+      options = options || {};
+      options.headers = options.headers || {};
+      var authHeaders = getAuthHeaders();
+      for (var k in authHeaders) {
+        if (!options.headers[k]) options.headers[k] = authHeaders[k];
+      }
+      return fetch(url, options).then(function(res) {
+        if (res.status === 401 && isAuthenticated()) {
+          clearToken();
+          showAuth();
+          throw new Error('Sesión expirada');
+        }
+        return res;
+      });
+    }
+
+    function getAgentInitial() { return 'F'; }
 
     function autoResize() {
       input.style.height = 'auto';
@@ -395,10 +613,6 @@
       html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
       html = html.replace(/\n/g, '<br>');
       return html;
-    }
-
-    function getAgentInitial() {
-      return 'F';
     }
 
     function addMessage(role, content) {
@@ -518,7 +732,7 @@
     }
 
     function loadSessions() {
-      fetch('/sessions').then(function(res) { return res.json(); }).then(function(sessions) {
+      apiFetch('/sessions').then(function(res) { return res.json(); }).then(function(sessions) {
         sessionListEl.innerHTML = '';
         if (!sessions || sessions.length === 0) {
           sessionListEl.innerHTML = '<div class="no-sessions">Sin conversaciones</div>';
@@ -578,7 +792,7 @@
       updateGuestUI();
       clearChat();
 
-      fetch('/sessions/' + sessionId + '/messages').then(function(res) { return res.json(); }).then(function(messages) {
+      apiFetch('/sessions/' + sessionId + '/messages').then(function(res) { return res.json(); }).then(function(messages) {
         if (!messages || messages.length === 0) {
           showEmptyState();
         } else {
@@ -598,24 +812,24 @@
 
     function createSession() {
       if (loading) return;
-      fetch('/sessions', { method: 'POST' }).then(function(res) { return res.json(); }).then(function(data) {
+      apiFetch('/sessions', { method: 'POST' }).then(function(res) { return res.json(); }).then(function(data) {
         switchSession(data.session_id);
       }).catch(function() {});
     }
 
     function createGuestSession() {
       if (loading) return;
-      fetch('/sessions/guest', { method: 'POST' }).then(function(res) { return res.json(); }).then(function(data) {
+      apiFetch('/sessions/guest', { method: 'POST' }).then(function(res) { return res.json(); }).then(function(data) {
         switchSession(data.session_id);
       }).catch(function() {});
     }
 
     function deleteSession(sessionId) {
       if (loading) return;
-      fetch('/sessions/' + sessionId, { method: 'DELETE' }).then(function() {
+      apiFetch('/sessions/' + sessionId, { method: 'DELETE' }).then(function() {
         if (currentSessionId === sessionId) {
           currentSessionId = null;
-          return fetch('/sessions').then(function(r) { return r.json(); }).then(function(sessions) {
+          return apiFetch('/sessions').then(function(r) { return r.json(); }).then(function(sessions) {
             if (sessions && sessions.length > 0) {
               return switchSession(sessions[0].id);
             } else {
@@ -630,7 +844,7 @@
 
     function saveGuestSession() {
       if (loading || !isGuestSession) return;
-      fetch('/sessions/' + currentSessionId + '/save', { method: 'POST' }).then(function(res) { return res.json(); }).then(function(data) {
+      apiFetch('/sessions/' + currentSessionId + '/save', { method: 'POST' }).then(function(res) { return res.json(); }).then(function(data) {
         switchSession(data.session_id);
       }).catch(function() {});
     }
@@ -649,9 +863,8 @@
 
       var lang = localStorage.getItem('opencode_lang') || 'auto';
       var style = localStorage.getItem('opencode_style') || '';
-      fetch('/chat', {
+      apiFetch('/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg, session_id: currentSessionId, language: lang, style: style })
       }).then(function(res) { return res.json(); }).then(function(data) {
         removeTyping();
@@ -671,7 +884,6 @@
       });
     }
 
-    /* ── Settings Drawer ── */
     var overlay = document.getElementById('settingsOverlay');
     var drawer = document.getElementById('settingsDrawer');
     var langSelect = document.getElementById('langSelect');
@@ -787,8 +999,8 @@
       renderThinkingMsgs();
     });
 
-    function init() {
-      fetch('/sessions').then(function(r) { return r.json(); }).then(function(sessions) {
+    function initApp() {
+      apiFetch('/sessions').then(function(r) { return r.json(); }).then(function(sessions) {
         if (sessions && sessions.length > 0) {
           switchSession(sessions[0].id);
         } else {
@@ -797,6 +1009,21 @@
       }).catch(function() {
         createSession();
       });
+    }
+
+    function init() {
+      if (isAuthenticated()) {
+        var username = localStorage.getItem('opencode_user');
+        if (username) {
+          document.getElementById('userBadge').textContent = username;
+          document.getElementById('userBadge').style.display = 'inline-block';
+          document.getElementById('btnLogout').style.display = 'inline-block';
+        }
+        hideAuth();
+        initApp();
+      } else {
+        showAuth();
+      }
     }
 
     init();

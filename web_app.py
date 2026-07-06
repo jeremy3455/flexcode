@@ -1,12 +1,17 @@
+import hashlib
 import os
+import secrets
 import socket
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Dict
 
+import jwt
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
 from conversational_agent import Agent, AgentConfig
@@ -26,11 +31,17 @@ config = AgentConfig(
     model=os.getenv("OPENAI_MODEL", "llama3.2"),
 )
 
+JWT_SECRET = os.getenv("JWT_SECRET", secrets.token_hex(32))
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_HOURS = 24
+
 database.init_db()
+
 agents: Dict[str, Agent] = {}
 guest_agents: Dict[str, Agent] = {}
 
 app = FastAPI(title="Agente Conversacional")
+security = HTTPBearer(auto_error=False)
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,17 +50,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-def get_agent(session_id: str) -> Agent:
-    if session_id not in agents:
-        agent = Agent(config)
-        messages = database.get_messages(session_id)
-        if messages:
-            agent.load_messages(messages)
-        agents[session_id] = agent
-    return agents[session_id]
-
 
 LANGUAGES = {
     "auto": ("Eres un asistente conversacional amable y servicial.", "Respondes en el mismo idioma en que te hablan."),
@@ -62,6 +62,17 @@ LANGUAGES = {
     "ja": ("あなたはフレンドリーで役立つ会話アシスタントです。", "重要: ユーザーがどの言語で書いても、常に日本語でのみ回答してください。回答は必ず日本語にしてください。"),
     "zh": ("你是一个友好且乐于助人的对话助手。", "重要：无论用户用什么语言书写，你必须始终只用中文回答。你的回答必须始终是中文。"),
 }
+
+
+class AuthRequest(BaseModel):
+    username: str
+    password: str
+
+
+class AuthResponse(BaseModel):
+    token: str
+    user_id: str
+    username: str
 
 
 class ChatRequest(BaseModel):
@@ -85,8 +96,84 @@ class GuestSessionInfo(BaseModel):
     is_guest: bool = True
 
 
+def hash_password(password: str) -> str:
+    salt = os.urandom(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)
+    return salt.hex() + ":" + dk.hex()
+
+
+def verify_password(password: str, stored: str) -> bool:
+    salt_hex, dk_hex = stored.split(":")
+    salt = bytes.fromhex(salt_hex)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)
+    return dk.hex() == dk_hex
+
+
+def create_token(user_id: str, username: str) -> str:
+    payload = {
+        "user_id": user_id,
+        "username": username,
+        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRE_HOURS),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(security)) -> dict | None:
+    if credentials is None:
+        return None
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return {"user_id": payload["user_id"], "username": payload["username"]}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(401, "Token expirado")
+    except jwt.InvalidTokenError:
+        raise HTTPException(401, "Token inválido")
+
+
+def get_agent(session_id: str) -> Agent:
+    if session_id not in agents:
+        agent = Agent(config)
+        messages = database.get_messages(session_id)
+        if messages:
+            agent.load_messages(messages)
+        agents[session_id] = agent
+    return agents[session_id]
+
+
+@app.post("/register", response_model=AuthResponse)
+def register(req: AuthRequest):
+    if len(req.username) < 3:
+        raise HTTPException(400, "El usuario debe tener al menos 3 caracteres")
+    if len(req.password) < 4:
+        raise HTTPException(400, "La contraseña debe tener al menos 4 caracteres")
+    existing = database.get_user_by_username(req.username)
+    if existing:
+        raise HTTPException(409, "El usuario ya existe")
+    user_id = str(uuid.uuid4())
+    pw_hash = hash_password(req.password)
+    database.create_user(user_id, req.username, pw_hash)
+    token = create_token(user_id, req.username)
+    return AuthResponse(token=token, user_id=user_id, username=req.username)
+
+
+@app.post("/login", response_model=AuthResponse)
+def login(req: AuthRequest):
+    user = database.get_user_by_username(req.username)
+    if not user or not verify_password(req.password, user["password_hash"]):
+        raise HTTPException(401, "Usuario o contraseña incorrectos")
+    token = create_token(user["id"], user["username"])
+    return AuthResponse(token=token, user_id=user["id"], username=user["username"])
+
+
+@app.get("/me")
+def me(user: dict = Depends(get_current_user)):
+    if not user:
+        raise HTTPException(401, "No autenticado")
+    return user
+
+
 @app.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest):
+def chat(req: ChatRequest, user: dict | None = Depends(get_current_user)):
     if req.session_id in guest_agents:
         agent = guest_agents[req.session_id]
     else:
@@ -95,9 +182,6 @@ def chat(req: ChatRequest):
     base, lang_instr = LANGUAGES.get(req.language, LANGUAGES["auto"])
     style_instr = f"\n{req.style}" if req.style else ""
     agent.config.system_prompt = f"{base}\n\n{lang_instr}{style_instr}"
-
-    print(f"[DEBUG] language={req.language}, style={req.style}")
-    print(f"[DEBUG] system_prompt={agent.config.system_prompt[:200]}")
 
     reply = agent.ask(req.message)
 
@@ -112,9 +196,9 @@ def chat(req: ChatRequest):
 
 
 @app.post("/sessions", response_model=SessionIdResponse)
-def create_session():
+def create_session(user: dict | None = Depends(get_current_user)):
     session_id = str(uuid.uuid4())
-    database.create_session(session_id)
+    database.create_session(session_id, user["user_id"] if user else "")
     return SessionIdResponse(session_id=session_id)
 
 
@@ -126,8 +210,8 @@ def create_guest_session():
 
 
 @app.get("/sessions")
-def list_sessions():
-    result = database.get_sessions()
+def list_sessions(user: dict | None = Depends(get_current_user)):
+    result = database.get_sessions(user["user_id"] if user else "")
     for gid, agent in guest_agents.items():
         title = "Invitado"
         last = agent.memory.last()
@@ -154,12 +238,12 @@ def delete_session_endpoint(session_id: str):
 
 
 @app.post("/sessions/{session_id}/save", response_model=SessionIdResponse)
-def save_guest_session(session_id: str):
+def save_guest_session(session_id: str, user: dict | None = Depends(get_current_user)):
     if session_id not in guest_agents:
         raise HTTPException(404, "Sesión de invitado no encontrada")
     agent = guest_agents.pop(session_id)
     new_id = str(uuid.uuid4())
-    database.create_session(new_id)
+    database.create_session(new_id, user["user_id"] if user else "")
     history = agent.memory.get_history()
     for msg in history:
         database.add_message(new_id, msg["role"], msg["content"])

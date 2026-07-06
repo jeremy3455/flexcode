@@ -15,8 +15,15 @@ def get_connection() -> sqlite3.Connection:
 def init_db() -> None:
     with get_connection() as conn:
         conn.executescript("""
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS sessions (
                 id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL DEFAULT '',
                 title TEXT NOT NULL DEFAULT 'Nueva conversación',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
@@ -30,14 +37,46 @@ def init_db() -> None:
                 FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
             );
         """)
+        # Migration: add user_id column if upgrading from old schema
+        cursor = conn.execute("PRAGMA table_info(sessions)")
+        columns = [row["name"] for row in cursor.fetchall()]
+        if "user_id" not in columns:
+            conn.execute("ALTER TABLE sessions ADD COLUMN user_id TEXT NOT NULL DEFAULT ''")
 
 
-def create_session(session_id: str) -> None:
+def create_user(user_id: str, username: str, password_hash: str) -> None:
     now = datetime.now().isoformat()
     with get_connection() as conn:
         conn.execute(
-            "INSERT INTO sessions (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (session_id, "Nueva conversación", now, now),
+            "INSERT INTO users (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)",
+            (user_id, username, password_hash, now),
+        )
+
+
+def get_user_by_username(username: str) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT id, username, password_hash, created_at FROM users WHERE username = ?",
+            (username,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def get_user_by_id(user_id: str) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT id, username, created_at FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def create_session(session_id: str, user_id: str = "") -> None:
+    now = datetime.now().isoformat()
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT INTO sessions (id, user_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            (session_id, user_id, "Nueva conversación", now, now),
         )
 
 
@@ -56,12 +95,18 @@ def delete_session(session_id: str) -> None:
         conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
 
 
-def get_sessions(limit: int = 50) -> list[dict]:
+def get_sessions(user_id: str = "", limit: int = 50) -> list[dict]:
     with get_connection() as conn:
-        rows = conn.execute(
-            "SELECT id, title, created_at, updated_at FROM sessions ORDER BY updated_at DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
+        if user_id:
+            rows = conn.execute(
+                "SELECT id, title, created_at, updated_at FROM sessions WHERE user_id = ? ORDER BY updated_at DESC LIMIT ?",
+                (user_id, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, title, created_at, updated_at FROM sessions ORDER BY updated_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
         return [dict(r) for r in rows]
 
 

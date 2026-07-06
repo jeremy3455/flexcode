@@ -6,7 +6,7 @@ from typing import Optional
 from openai import OpenAI
 
 from .memory import ConversationMemory
-from tools import web_search, execute_python, generate_image, calculate, get_current_datetime, read_file
+from tools import web_search, execute_python, generate_image, calculate, get_current_datetime, read_file, generate_pdf, generate_docx, generate_xlsx
 
 
 TOOLS = [
@@ -112,6 +112,86 @@ TOOLS = [
             }
         }
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_pdf",
+            "description": "Genera un archivo PDF con titulo y contenido de texto. Usa esta herramienta cuando el usuario pida crear un PDF, un documento formal, un reporte, o un archivo PDF.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "El titulo del documento PDF."
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "El contenido del documento en texto plano, separado por saltos de linea."
+                    },
+                    "filename": {
+                        "type": "string",
+                        "description": "Nombre sugerido para el archivo (opcional, sin extension)."
+                    }
+                },
+                "required": ["title", "content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_docx",
+            "description": "Genera un archivo Word (.docx) con titulo y contenido. Usa esta herramienta cuando el usuario pida crear un documento de Word, un archivo .docx, una carta formal, o un informe editable.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "El titulo del documento Word."
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "El contenido del documento en texto plano, separado por saltos de linea."
+                    },
+                    "filename": {
+                        "type": "string",
+                        "description": "Nombre sugerido para el archivo (opcional, sin extension)."
+                    }
+                },
+                "required": ["title", "content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_xlsx",
+            "description": "Genera un archivo Excel (.xlsx) con encabezados y filas de datos. Usa esta herramienta cuando el usuario pida crear una tabla, una hoja de calculo, un Excel, o datos organizados en columnas.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "headers": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Lista de nombres de columnas (ej: ['Nombre', 'Edad', 'Ciudad'])."
+                    },
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {"type": "string"}
+                        },
+                        "description": "Lista de filas, donde cada fila es una lista de valores (ej: [['Ana', '30', 'Lima'], ['Luis', '25', 'Bogota']])."
+                    },
+                    "filename": {
+                        "type": "string",
+                        "description": "Nombre sugerido para el archivo (opcional, sin extension)."
+                    }
+                },
+                "required": ["headers", "rows"]
+            }
+        }
+    },
 ]
 
 TOOL_MAP = {
@@ -121,6 +201,9 @@ TOOL_MAP = {
     "calculate": calculate,
     "get_current_datetime": get_current_datetime,
     "read_file": read_file,
+    "generate_pdf": generate_pdf,
+    "generate_docx": generate_docx,
+    "generate_xlsx": generate_xlsx,
 }
 
 
@@ -135,7 +218,10 @@ class AgentConfig:
         "- generate_image: Generar imagenes a partir de una descripcion.\n"
         "- calculate: Realizar calculos matematicos.\n"
         "- get_current_datetime: Obtener la fecha y hora actual.\n"
-        "- read_file: Leer el contenido de archivos.\n\n"
+        "- read_file: Leer el contenido de archivos.\n"
+        "- generate_pdf: Generar documentos PDF.\n"
+        "- generate_docx: Generar documentos Word (.docx).\n"
+        "- generate_xlsx: Generar archivos Excel (.xlsx).\n\n"
         "Cuando el usuario te pida algo que requiera una herramienta, usala. "
         "Si no necesitas herramienta, responde normalmente."
     )

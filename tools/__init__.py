@@ -4,6 +4,7 @@ from .image_gen import generate_image
 from .calculator import calculate
 from .datetime_tool import get_current_datetime
 from .file_reader import read_file
+from .doc_generator import generate_pdf, generate_docx, generate_xlsx
 
 __all__ = [
     "web_search",
@@ -12,4 +13,7 @@ __all__ = [
     "calculate",
     "get_current_datetime",
     "read_file",
+    "generate_pdf",
+    "generate_docx",
+    "generate_xlsx",
 ]

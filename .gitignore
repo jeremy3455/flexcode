@@ -5,3 +5,5 @@ __pycache__/
 conversations.db
 .venv/
 venv/
+documentos_generados/
+.pytest_cache/

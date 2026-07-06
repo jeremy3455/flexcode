@@ -326,6 +326,39 @@ class Agent:
             url = generate_image(prompt)
             return f"Imagen generada de: **{prompt}**\n\n![{prompt}]({url})"
 
+        if msg_lower.startswith("/pdf "):
+            args = message[len("/pdf "):]
+            parts = args.split("|", 1)
+            title = parts[0].strip()
+            content = parts[1].strip() if len(parts) > 1 else ""
+            if not content:
+                return "Usa: /pdf Titulo | Contenido del documento"
+            return generate_pdf(title, content)
+
+        if msg_lower.startswith("/word "):
+            args = message[len("/word "):]
+            parts = args.split("|", 1)
+            title = parts[0].strip()
+            content = parts[1].strip() if len(parts) > 1 else ""
+            if not content:
+                return "Usa: /word Titulo | Contenido del documento"
+            return generate_docx(title, content)
+
+        if msg_lower.startswith("/excel "):
+            args = message[len("/excel "):]
+            parts = args.split("|", 1)
+            if len(parts) < 2:
+                return "Usa: /excel col1,col2 | val1,val2;val3,val4"
+            headers = [h.strip() for h in parts[0].split(",") if h.strip()]
+            rows = []
+            for row_str in parts[1].split(";"):
+                row_str = row_str.strip()
+                if row_str:
+                    rows.append([v.strip() for v in row_str.split(",")])
+            if not headers or not rows:
+                return "Usa: /excel col1,col2 | val1,val2;val3,val4"
+            return generate_xlsx(headers, rows)
+
         return None
 
     def load_messages(self, messages: list[dict]) -> None:

@@ -290,6 +290,10 @@ class Agent:
                 result = f"Error: herramienta '{fn_name}' no encontrada."
             else:
                 try:
+                    if fn_name in ("generate_pdf", "generate_docx"):
+                        fn_args["content"] = self._generate_doc_content(
+                            fn_args.get("title", ""), fn_args.get("content", "")
+                        )
                     result = fn(**fn_args)
                 except Exception as e:
                     result = f"Error al ejecutar {fn_name}: {e}"
@@ -311,12 +315,18 @@ class Agent:
         self.memory.add("assistant", content)
         return content
 
-    def _generate_doc_content(self, topic: str) -> str:
-        prompt = (
-            f"Redacta el contenido completo de un documento sobre: {topic}\n\n"
-            "Escribe el documento completo y bien estructurado con parrafos. "
-            "No incluyas ningun saludo ni explicacion, solo el contenido del documento en si."
-        )
+    def _generate_doc_content(self, topic: str, user_content: str = "") -> str:
+        if user_content and len(user_content) > 50:
+            prompt = (
+                f"Mejorame y expande el siguiente contenido para un documento titulado '{topic}'. "
+                f"Corrige errores, agregale estructura y hazlo mas profesional:\n\n{user_content}"
+            )
+        else:
+            prompt = (
+                f"Redacta el contenido completo de un documento sobre: {topic}\n\n"
+                "Escribe el documento completo y bien estructurado con parrafos. "
+                "No incluyas ningun saludo ni explicacion, solo el contenido del documento en si."
+            )
         messages = [
             {"role": "system", "content": "Eres un redactor profesional. Genera contenido claro y bien estructurado."},
             {"role": "user", "content": prompt},
@@ -330,7 +340,8 @@ class Agent:
             )
             return response.choices[0].message.content or topic
         except Exception:
-            return f"Documento sobre: {topic}\n\nContenido generado automaticamente."
+            fallback = user_content or topic
+            return f"Documento sobre: {fallback}"
 
     def _execute_explicit_command(self, message: str) -> Optional[str]:
         msg_lower = message.strip().lower()

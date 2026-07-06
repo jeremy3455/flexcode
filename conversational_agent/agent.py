@@ -116,21 +116,21 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "generate_pdf",
-            "description": "Genera un archivo PDF con titulo y contenido de texto. Usa esta herramienta cuando el usuario pida crear un PDF, un documento formal, un reporte, o un archivo PDF.",
+            "description": "Genera un PDF con titulo y contenido. IMPORTANTE: TU debes generar el contenido completo del documento basandote en lo que el usuario pide. NO uses el mensaje del usuario como contenido directamente. Escribe tu mismo el texto del documento. Ej: si pide 'reporte de ventas', tu escribes el reporte completo.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "title": {
                         "type": "string",
-                        "description": "El titulo del documento PDF."
+                        "description": "El titulo del documento."
                     },
                     "content": {
                         "type": "string",
-                        "description": "El contenido del documento en texto plano, separado por saltos de linea."
+                        "description": "El contenido COMPLETO del documento que TU mismo generaste, no el mensaje del usuario."
                     },
                     "filename": {
                         "type": "string",
-                        "description": "Nombre sugerido para el archivo (opcional, sin extension)."
+                        "description": "Nombre sugerido para el archivo (opcional)."
                     }
                 },
                 "required": ["title", "content"]
@@ -141,21 +141,21 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "generate_docx",
-            "description": "Genera un archivo Word (.docx) con titulo y contenido. Usa esta herramienta cuando el usuario pida crear un documento de Word, un archivo .docx, una carta formal, o un informe editable.",
+            "description": "Genera un Word (.docx) con titulo y contenido. IMPORTANTE: TU debes generar el contenido completo del documento. NO pases el mensaje del usuario como content. Escribe tu mismo el documento.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "title": {
                         "type": "string",
-                        "description": "El titulo del documento Word."
+                        "description": "Titulo del documento."
                     },
                     "content": {
                         "type": "string",
-                        "description": "El contenido del documento en texto plano, separado por saltos de linea."
+                        "description": "Contenido COMPLETO que TU generaste."
                     },
                     "filename": {
                         "type": "string",
-                        "description": "Nombre sugerido para el archivo (opcional, sin extension)."
+                        "description": "Nombre sugerido (opcional)."
                     }
                 },
                 "required": ["title", "content"]
@@ -166,14 +166,14 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "generate_xlsx",
-            "description": "Genera un archivo Excel (.xlsx) con encabezados y filas de datos. Usa esta herramienta cuando el usuario pida crear una tabla, una hoja de calculo, un Excel, o datos organizados en columnas.",
+            "description": "Genera un Excel (.xlsx) con datos. IMPORTANTE: TU debes generar los datos. NO copies el mensaje del usuario. Crea tu mismo los encabezados y filas.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "headers": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Lista de nombres de columnas (ej: ['Nombre', 'Edad', 'Ciudad'])."
+                        "description": "Nombres de columnas que TU generaste."
                     },
                     "rows": {
                         "type": "array",
@@ -181,11 +181,11 @@ TOOLS = [
                             "type": "array",
                             "items": {"type": "string"}
                         },
-                        "description": "Lista de filas, donde cada fila es una lista de valores (ej: [['Ana', '30', 'Lima'], ['Luis', '25', 'Bogota']])."
+                        "description": "Filas de datos que TU generaste."
                     },
                     "filename": {
                         "type": "string",
-                        "description": "Nombre sugerido para el archivo (opcional, sin extension)."
+                        "description": "Nombre sugerido (opcional)."
                     }
                 },
                 "required": ["headers", "rows"]
@@ -219,9 +219,12 @@ class AgentConfig:
         "- calculate: Realizar calculos matematicos.\n"
         "- get_current_datetime: Obtener la fecha y hora actual.\n"
         "- read_file: Leer el contenido de archivos.\n"
-        "- generate_pdf: Generar documentos PDF.\n"
-        "- generate_docx: Generar documentos Word (.docx).\n"
-        "- generate_xlsx: Generar archivos Excel (.xlsx).\n\n"
+        "- generate_pdf: Generar documentos PDF (TU debes escribir el contenido, no copies al usuario).\n"
+        "- generate_docx: Generar documentos Word .docx (TU escribes el contenido).\n"
+        "- generate_xlsx: Generar archivos Excel .xlsx (TU creas los datos).\n"
+        "IMPORTANTE para documentos: Cuando el usuario te pida un PDF, Word o Excel, "
+        "NO pases su mensaje como contenido. PRIMERO piensa y genera tu mismo "
+        "el contenido completo del documento, luego llama a la herramienta con ese contenido.\n\n"
         "Cuando el usuario te pida algo que requiera una herramienta, usala. "
         "Si no necesitas herramienta, responde normalmente."
     )
@@ -308,6 +311,27 @@ class Agent:
         self.memory.add("assistant", content)
         return content
 
+    def _generate_doc_content(self, topic: str) -> str:
+        prompt = (
+            f"Redacta el contenido completo de un documento sobre: {topic}\n\n"
+            "Escribe el documento completo y bien estructurado con parrafos. "
+            "No incluyas ningun saludo ni explicacion, solo el contenido del documento en si."
+        )
+        messages = [
+            {"role": "system", "content": "Eres un redactor profesional. Genera contenido claro y bien estructurado."},
+            {"role": "user", "content": prompt},
+        ]
+        try:
+            response = self._client.chat.completions.create(
+                model=self.config.model,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=2048,
+            )
+            return response.choices[0].message.content or topic
+        except Exception:
+            return f"Documento sobre: {topic}\n\nContenido generado automaticamente."
+
     def _execute_explicit_command(self, message: str) -> Optional[str]:
         msg_lower = message.strip().lower()
 
@@ -332,7 +356,7 @@ class Agent:
             title = parts[0].strip()
             content = parts[1].strip() if len(parts) > 1 else ""
             if not content:
-                return "Usa: /pdf Titulo | Contenido del documento"
+                content = self._generate_doc_content(title)
             return generate_pdf(title, content)
 
         if msg_lower.startswith("/word "):
@@ -341,7 +365,7 @@ class Agent:
             title = parts[0].strip()
             content = parts[1].strip() if len(parts) > 1 else ""
             if not content:
-                return "Usa: /word Titulo | Contenido del documento"
+                content = self._generate_doc_content(title)
             return generate_docx(title, content)
 
         if msg_lower.startswith("/excel "):

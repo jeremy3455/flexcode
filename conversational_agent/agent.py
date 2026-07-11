@@ -1,3 +1,4 @@
+import copy
 import json
 import re
 from dataclasses import dataclass
@@ -276,7 +277,8 @@ class AgentConfig:
 
 class Agent:
     def __init__(self, config: Optional[AgentConfig] = None):
-        self.config = config or AgentConfig()
+        # Make a copy so each agent owns its own config (avoid shared mutation)
+        self.config = copy.copy(config) if config else AgentConfig()
         self.memory = ConversationMemory(max_messages=self.config.max_history)
 
         client_kwargs = {}

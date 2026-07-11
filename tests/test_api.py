@@ -40,7 +40,7 @@ client = TestClient(app)
 
 
 def test_register():
-    resp = client.post("/register", json={"username": "nuevo", "password": "1234"})
+    resp = client.post("/register", json={"username": "nuevo", "password": "12345678"})
     assert resp.status_code == 200
     data = resp.json()
     assert "token" in data
@@ -48,19 +48,19 @@ def test_register():
 
 
 def test_register_duplicate():
-    client.post("/register", json={"username": "dup", "password": "1234"})
-    resp = client.post("/register", json={"username": "dup", "password": "5678"})
+    client.post("/register", json={"username": "dup", "password": "12345678"})
+    resp = client.post("/register", json={"username": "dup", "password": "56789012"})
     assert resp.status_code == 409
 
 
 def test_register_short_username():
-    resp = client.post("/register", json={"username": "ab", "password": "1234"})
+    resp = client.post("/register", json={"username": "ab", "password": "12345678"})
     assert resp.status_code == 400
 
 
 def test_login():
-    client.post("/register", json={"username": "user1", "password": "pass1"})
-    resp = client.post("/login", json={"username": "user1", "password": "pass1"})
+    client.post("/register", json={"username": "user1", "password": "pass1234"})
+    resp = client.post("/login", json={"username": "user1", "password": "pass1234"})
     assert resp.status_code == 200
     assert "token" in resp.json()
 
@@ -71,7 +71,7 @@ def test_login_wrong():
 
 
 def test_me():
-    reg = client.post("/register", json={"username": "meuser", "password": "1234"})
+    reg = client.post("/register", json={"username": "meuser", "password": "12345678"})
     token = reg.json()["token"]
     resp = client.get("/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
@@ -84,7 +84,7 @@ def test_me_unauthorized():
 
 
 def test_create_session_authenticated():
-    reg = client.post("/register", json={"username": "sess", "password": "1234"})
+    reg = client.post("/register", json={"username": "sess", "password": "12345678"})
     token = reg.json()["token"]
     resp = client.post("/sessions", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
@@ -99,7 +99,7 @@ def test_guest_session():
 
 
 def test_list_sessions():
-    reg = client.post("/register", json={"username": "listuser", "password": "1234"})
+    reg = client.post("/register", json={"username": "listuser", "password": "12345678"})
     token = reg.json()["token"]
     client.post("/sessions", headers={"Authorization": f"Bearer {token}"})
     resp = client.get("/sessions", headers={"Authorization": f"Bearer {token}"})

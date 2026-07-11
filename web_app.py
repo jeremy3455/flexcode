@@ -453,6 +453,12 @@ if __name__ == "__main__":
 
     port = int(os.getenv("PORT", 8001))
     ip = get_local_ip()
+    provider = "Ollama" if "ollama" in base_url.lower() or "11434" in base_url else \
+               "Groq" if "groq" in base_url.lower() else \
+               "Gemini" if "googleapis" in base_url.lower() or "gemini" in base_url.lower() else \
+               "OpenAI"
+    print(f"  Provider: {provider}")
+    print(f"  Model:    {config.model}")
     print(f"  Local:    http://127.0.0.1:{port}")
     print(f"  Red:      http://{ip}:{port}")
     print(f"  Abre http://{ip}:{port} en Google Chrome desde cualquier dispositivo en la misma red")

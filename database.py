@@ -45,6 +45,8 @@ def init_db() -> None:
 
 
 def create_user(user_id: str, username: str, password_hash: str) -> None:
+    if not (3 <= len(username) <= 30):
+        raise ValueError("El usuario debe tener entre 3 y 30 caracteres")
     now = datetime.now().isoformat()
     with get_connection() as conn:
         conn.execute(

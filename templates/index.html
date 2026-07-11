@@ -262,6 +262,10 @@
   .auth-form.active { display: block; }
   .auth-form .field { margin-bottom: 14px; }
   .auth-form label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 4px; font-weight: 600; }
+  .password-wrapper { position: relative; width: 100%; }
+  .password-wrapper input { padding-right: 36px; }
+  .btn-toggle-pw { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 4px 6px; font-size: 16px; line-height: 1; opacity: 0.45; transition: opacity 0.15s; }
+  .btn-toggle-pw:hover { opacity: 0.85; }
   .auth-form input {
     width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
     color: var(--text); font-family: var(--font-body); font-size: 14px; padding: 10px 14px;
@@ -294,11 +298,14 @@
     <div class="auth-form active" id="loginForm">
       <div class="field">
         <label>Usuario</label>
-        <input type="text" id="loginUsername" placeholder="Nombre de usuario" autocomplete="username">
+        <input type="text" id="loginUsername" placeholder="Nombre de usuario" maxlength="30" autocomplete="username">
       </div>
       <div class="field">
         <label>Contraseña</label>
-        <input type="password" id="loginPassword" placeholder="Contraseña" autocomplete="current-password">
+        <div class="password-wrapper">
+          <input type="password" id="loginPassword" placeholder="Contraseña" maxlength="12" autocomplete="current-password">
+          <button class="btn-toggle-pw" type="button" data-target="loginPassword" tabindex="-1">👁</button>
+        </div>
       </div>
       <button class="btn-auth" id="loginBtn">Ingresar</button>
       <div class="auth-error" id="loginError"></div>
@@ -306,11 +313,14 @@
     <div class="auth-form" id="registerForm">
       <div class="field">
         <label>Usuario</label>
-        <input type="text" id="registerUsername" placeholder="Nombre de usuario" autocomplete="username">
+        <input type="text" id="registerUsername" placeholder="Nombre de usuario" maxlength="30" autocomplete="username">
       </div>
       <div class="field">
         <label>Contraseña</label>
-        <input type="password" id="registerPassword" placeholder="Mínimo 4 caracteres" autocomplete="new-password">
+        <div class="password-wrapper">
+          <input type="password" id="registerPassword" placeholder="8 a 12 caracteres" maxlength="12" autocomplete="new-password">
+          <button class="btn-toggle-pw" type="button" data-target="registerPassword" tabindex="-1">👁</button>
+        </div>
       </div>
       <button class="btn-auth" id="registerBtn">Crear cuenta</button>
       <div class="auth-error" id="registerError"></div>
@@ -553,6 +563,20 @@
     enterKey(document.getElementById('loginPassword'), 'loginBtn');
     enterKey(document.getElementById('registerUsername'), 'registerBtn');
     enterKey(document.getElementById('registerPassword'), 'registerBtn');
+
+    var pwToggles = document.querySelectorAll('.btn-toggle-pw');
+    for (var j = 0; j < pwToggles.length; j++) {
+      (function(btn) {
+        btn.addEventListener('click', function() {
+          var inp = document.getElementById(this.dataset.target);
+          if (inp) {
+            var isPassword = inp.type === 'password';
+            inp.type = isPassword ? 'text' : 'password';
+            this.textContent = isPassword ? '🙈' : '👁';
+          }
+        });
+      })(pwToggles[j]);
+    }
 
     /* ── API helpers ── */
     function apiFetch(url, options) {

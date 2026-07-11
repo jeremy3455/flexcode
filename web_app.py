@@ -59,16 +59,107 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-LANGUAGES = {
-    "auto": ("Eres un asistente conversacional amable y servicial.", "Respondes en el mismo idioma en que te hablan."),
-    "es": ("Eres un asistente conversacional amable y servicial.", "IMPORTANTE: Debes responder SIEMPRE únicamente en español, sin importar el idioma en que te escriban. El usuario puede escribir en cualquier idioma, pero tu respuesta debe ser siempre en español."),
-    "en": ("You are a friendly and helpful conversational assistant.", "IMPORTANT: You MUST ALWAYS respond ONLY in English, no matter what language the user writes in. The user may write in any language, but your reply must always be in English. Never switch to another language."),
-    "pt": ("Você é um assistente conversacional amigável e útil.", "IMPORTANTE: Você deve SEMPRE responder apenas em português, independentemente do idioma em que o usuário escrever. Sua resposta deve ser sempre em português."),
-    "fr": ("Vous êtes un assistant conversationnel amical et serviable.", "IMPORTANT : Vous devez TOUJOURS répondre uniquement en français, quelle que soit la langue utilisée par l'utilisateur. Votre réponse doit toujours être en français."),
-    "de": ("Du bist ein freundlicher und hilfsbereiter Gesprächsassistent.", "WICHTIG: Du musst IMMER nur auf Deutsch antworten, egal in welcher Sprache der Benutzer schreibt. Deine Antwort muss immer auf Deutsch sein."),
-    "it": ("Sei un assistente conversazionale amichevole e disponibile.", "IMPORTANTE: Devi SEMPRE rispondere solo in italiano, indipendentemente dalla lingua in cui l'utente scrive. La tua risposta deve essere sempre in italiano."),
-    "ja": ("あなたはフレンドリーで役立つ会話アシスタントです。", "重要: ユーザーがどの言語で書いても、常に日本語でのみ回答してください。回答は必ず日本語にしてください。"),
-    "zh": ("你是一个友好且乐于助人的对话助手。", "重要：无论用户用什么语言书写，你必须始终只用中文回答。你的回答必须始终是中文。"),
+LANG_RULES = {
+    "auto": (
+        "El usuario no ha fijado un idioma especifico. "
+        "Responde en el mismo idioma en que el usuario escriba su mensaje."
+    ),
+    "es": (
+        "El usuario tiene configurado ESPAÑOL como idioma de respuesta.\n\n"
+        "Reglas obligatorias:\n"
+        "1. Responde SIEMPRE en espanol, sin importar en que idioma escriba el usuario.\n"
+        "2. No cambies de idioma aunque el usuario escriba en otro idioma, mezcle idiomas, "
+        "o pida explicitamente una respuesta en otro idioma. Si lo pide, responde en espanol "
+        "y aclara que puede cambiar el idioma desde configuracion.\n"
+        "3. Excepciones validas: traducciones especificas que pida el usuario, "
+        "contenido solicitado en otro idioma (ej. 'escribeme una frase en frances'), "
+        "nombres propios, terminos tecnicos sin traduccion, y codigo (sintaxis original).\n"
+        "4. Todo tu razonamiento, formato, ejemplos y aclaraciones deben estar en espanol."
+    ),
+    "en": (
+        "The user has set ENGLISH as their response language.\n\n"
+        "Mandatory rules:\n"
+        "1. ALWAYS respond in English, no matter what language the user writes in.\n"
+        "2. Do not switch languages even if the user writes in another language, mixes languages, "
+        "or explicitly asks for a reply in another language. If asked, reply in English "
+        "and explain they can change the language in settings.\n"
+        "3. Valid exceptions: specific translations the user requests, "
+        "content requested in another language (e.g. 'write me a phrase in French'), "
+        "proper nouns, untranslated technical terms, and code (original syntax).\n"
+        "4. All your reasoning, formatting, examples, and clarifications must be in English."
+    ),
+    "pt": (
+        "O usuario configurou PORTUGUES como idioma de resposta.\n\n"
+        "Regras obrigatorias:\n"
+        "1. Responda SEMPRE em portugues, independentemente do idioma em que o usuario escrever.\n"
+        "2. Nao mude de idioma mesmo que o usuario escreva em outro idioma, misture idiomas, "
+        "ou peca explicitamente uma resposta em outro idioma. Se pedir, responda em portugues "
+        "e avise que pode mudar o idioma nas configuracoes.\n"
+        "3. Excecoes validas: traducoes especificas solicitadas, "
+        "conteudo solicitado em outro idioma (ex. 'escreva uma frase em italiano'), "
+        "nomes proprios, termos tecnicos sem traducao, e codigo (sintaxe original).\n"
+        "4. Todo o seu raciocinio, formato, exemplos e explicacoes devem estar em portugues."
+    ),
+    "fr": (
+        "L'utilisateur a defini le FRANCAIS comme langue de reponse.\n\n"
+        "Regles obligatoires :\n"
+        "1. Repondez TOUJOURS en francais, quelle que soit la langue utilisee par l'utilisateur.\n"
+        "2. Ne changez pas de langue meme si l'utilisateur ecrit dans une autre langue, melange "
+        "les langues, ou demande explicitement une reponse dans une autre langue. Si demande, "
+        "repondez en francais et precisez qu'il peut changer la langue dans les parametres.\n"
+        "3. Exceptions valides : traductions specifiques demandees, "
+        "contenu demande dans une autre langue (ex. 'ecris-moi une phrase en italien'), "
+        "noms propres, termes techniques sans traduction, et code (syntaxe originale).\n"
+        "4. Tout votre raisonnement, format, exemples et explications doivent etre en francais."
+    ),
+    "de": (
+        "Der Benutzer hat DEUTSCH als Antwortsprache eingestellt.\n\n"
+        "Verbindliche Regeln:\n"
+        "1. Antworte IMMER auf Deutsch, egal in welcher Sprache der Benutzer schreibt.\n"
+        "2. Wechsle nicht die Sprache, auch wenn der Benutzer in einer anderen Sprache schreibt, "
+        "Sprachen mischt oder explizit eine Antwort in einer anderen Sprache verlangt. "
+        "Wenn gefragt, antworte auf Deutsch und weise darauf hin, dass die Sprache in den "
+        "Einstellungen geaendert werden kann.\n"
+        "3. Gueltige Ausnahmen: spezifische Uebersetzungen, die der Benutzer anfordert, "
+        "Inhalt, der in einer anderen Sprache angefordert wird (z.B. 'schreib mir einen Satz "
+        "auf Italienisch'), Eigennamen, unuebersetzte Fachbegriffe und Code (Originalsyntax).\n"
+        "4. Deine gesamte Argumentation, Formatierung, Beispiele und Erklaerungen muessen "
+        "auf Deutsch sein."
+    ),
+    "it": (
+        "L'utente ha impostato ITALIANO come lingua di risposta.\n\n"
+        "Regole obbligatorie:\n"
+        "1. Rispondi SEMPRE in italiano, indipendentemente dalla lingua in cui scrive l'utente.\n"
+        "2. Non cambiare lingua anche se l'utente scrive in un'altra lingua, mescola lingue, "
+        "o chiede esplicitamente una risposta in un'altra lingua. Se lo chiede, rispondi in "
+        "italiano e spiega che puo cambiare la lingua dalle impostazioni.\n"
+        "3. Eccezioni valide: traduzioni specifiche richieste, "
+        "contenuto richiesto in un'altra lingua (es. 'scrivimi una frase in francese'), "
+        "nomi propri, termini tecnici senza traduzione e codice (sintassi originale).\n"
+        "4. Tutto il tuo ragionamento, formato, esempi e chiarimenti devono essere in italiano."
+    ),
+    "ja": (
+        "ユーザーは応答言語を日本語に設定しています。\n\n"
+        "必須ルール：\n"
+        "1. ユーザーがどの言語で書いても、常に日本語で回答してください。\n"
+        "2. ユーザーが別の言語で書いたり、言語を混ぜたり、別の言語での回答を明示的に"
+        "求めても、言語を切り替えないでください。求められた場合は日本語で回答し、"
+        "設定から言語を変更できることを説明してください。\n"
+        "3. 有効な例外：ユーザーが依頼した特定の翻訳、別の言語で依頼されたコンテンツ"
+        "（例：「イタリア語でフレーズを書いて」）、固有名詞、翻訳されていない専門用語、"
+        "およびコード（元の構文）。\n"
+        "4. 推論、形式、例、説明はすべて日本語で行ってください。"
+    ),
+    "zh": (
+        "用户已将响应语言设置为中文。\n\n"
+        "强制性规则：\n"
+        "1. 无论用户用什么语言书写，必须始终用中文回答。\n"
+        "2. 即使用户用其他语言书写、混合语言或明确要求用其他语言回复，"
+        "也不要切换语言。如果被要求，请用中文回复并说明可以在设置中更改语言。\n"
+        "3. 有效例外：用户要求的特定翻译、用其他语言请求的内容"
+        "（例如'用意大利语写一句话'）、专有名词、无通用翻译的术语和代码（原始语法）。\n"
+        "4. 你的所有推理、格式、示例和说明必须用中文。"
+    ),
 }
 
 
@@ -150,10 +241,10 @@ def get_agent(session_id: str) -> Agent:
 
 @app.post("/register", response_model=AuthResponse)
 def register(req: AuthRequest):
-    if len(req.username) < 3:
-        raise HTTPException(400, "El usuario debe tener al menos 3 caracteres")
-    if len(req.password) < 4:
-        raise HTTPException(400, "La contraseña debe tener al menos 4 caracteres")
+    if not (3 <= len(req.username) <= 30):
+        raise HTTPException(400, "El usuario debe tener entre 3 y 30 caracteres")
+    if not (8 <= len(req.password) <= 12):
+        raise HTTPException(400, "La contraseña debe tener entre 8 y 12 caracteres")
     existing = database.get_user_by_username(req.username)
     if existing:
         raise HTTPException(409, "El usuario ya existe")
@@ -187,9 +278,31 @@ def chat(req: ChatRequest, user: dict | None = Depends(get_current_user)):
     else:
         agent = get_agent(req.session_id)
 
-    base, lang_instr = LANGUAGES.get(req.language, LANGUAGES["auto"])
-    style_instr = f"\n{req.style}" if req.style else ""
-    agent.config.system_prompt = f"{base}\n\n{lang_instr}{style_instr}"
+    lang_rule = LANG_RULES.get(req.language, LANG_RULES["auto"])
+    parts = [config.system_prompt]
+    parts.append(
+        f"## Configuracion de Idioma de Respuesta\n\n"
+        f"El usuario tiene seleccionado el idioma: {req.language}\n\n"
+        f"{lang_rule}"
+    )
+    if req.style:
+        parts.append(
+            f"## Configuracion de Personalidad\n\n"
+            f"El usuario ha definido una instruccion de personalidad personalizada:\n\n"
+            f"Instruccion: \"{req.style}\"\n\n"
+            f"Reglas de aplicacion:\n"
+            f"1. Aplica esta instruccion a TODAS tus respuestas, ajustando tono, estilo y forma.\n"
+            f"2. La personalidad afecta el tono y la forma, NO el contenido ni la precision.\n"
+            f"   - La informacion debe seguir siendo correcta, completa y util.\n"
+            f"3. Interpreta la instruccion de forma consistente en toda la conversacion.\n"
+            f"4. Limites de seguridad y respeto (no negociables):\n"
+            f"   - Nunca uses el estilo para ser cruel, humillante o insultante.\n"
+            f"   - Si el tema es sensible (salud, duelo, crisis), suaviza el tono "
+            f"automaticamente y prioriza empatia.\n"
+            f"   - No permitas que la personalidad te lleve a dar info incorrecta o danina.\n"
+            f"5. Si el tema es serio o delicado, modera el estilo en esa respuesta puntual."
+        )
+    agent.config.system_prompt = "\n\n".join(parts)
 
     reply = agent.ask(req.message)
 
